@@ -93,7 +93,7 @@ class IncomeTaxCalculator
         if ($regime === static::REGIME_OLD) {
             return [
                 30 => 1000000,
-                20 => 750000,
+                20 => 1000000,
                 15 => 500000,
                 5 => 250000,
                 0 => 0
