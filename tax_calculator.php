@@ -10,7 +10,8 @@ if (php_sapi_name() !== "cli") {
 
 class IncomeTaxCalculator
 {
-
+    const NEW_REGIME_TAX_THRESHOLD = 700000;
+    const OLD_REGIME_TAX_THRESHOLD = 500000;
     const REGIME_OLD = 0;
     const REGIME_NEW = 1;
 
@@ -35,7 +36,7 @@ class IncomeTaxCalculator
         return $this->arguments[$argumentNumber + 1];
     }
 
-    public function calculate(): float
+    public function calculate(): array
     {
         $income = floatval($this->getCliInput(0, 'Income: '));
         $regime = strtolower($this->getCliInput(1, 'Regime (old/new): '));
@@ -46,7 +47,7 @@ class IncomeTaxCalculator
         }
 
         $totalTax = 0;
-        $slabs = $this->getTaxSlabs($regime);
+        $slabs = $this->getTaxSlabs($income, $regime);
         $incomeLeft = $income;
         $allocatedSlabs = [];
 
@@ -64,16 +65,40 @@ class IncomeTaxCalculator
         foreach ($allocatedSlabs as $allocatedSlab) {
             $totalTax += ($allocatedSlab['amount'] * $allocatedSlab['rate'] / 100);
         }
-        return $totalTax;
+        return [
+            'slabs' => array_reverse($allocatedSlabs),
+            'amount' => $totalTax
+        ];
     }
 
     /**
      * @param int $regime
      * @return int[]
      */
-    protected function getTaxSlabs(int $regime): array
+    protected function getTaxSlabs(float $income, int $regime): array
     {
+
+        if ($regime !== static::REGIME_OLD && $income <= static::NEW_REGIME_TAX_THRESHOLD) {
+            return [
+                0 => static::NEW_REGIME_TAX_THRESHOLD
+            ];
+        }
+
+        if ($regime === static::REGIME_OLD && $income <= static::OLD_REGIME_TAX_THRESHOLD) {
+            return [
+                0 => static::OLD_REGIME_TAX_THRESHOLD
+            ];
+        }
+
         if ($regime === static::REGIME_OLD) {
+            return [
+                30 => 1000000,
+                20 => 750000,
+                15 => 500000,
+                5 => 250000,
+                0 => 0
+            ];
+        } else { // If not old regime, assume new regime
             return [
                 30 => 1500000,
                 20 => 1200000,
@@ -82,18 +107,10 @@ class IncomeTaxCalculator
                 5 => 300000,
                 0 => 0
             ];
-        } else { // If not old regime, assume new regime
-            return [
-                30 => 1500000,
-                20 => 1200000,
-                15 => 900000,
-                10 => 700000,
-                0 => 0
-            ];
         }
     }
 }
 
 $incomeTaxCalculator = new IncomeTaxCalculator($argv);
 $tax = $incomeTaxCalculator->calculate();
-echo "Your total income tax is $tax\n";
+echo sprintf("Your total income tax is %s\n", $tax['amount']);
